@@ -68,6 +68,7 @@ const soundSettings = {
     description: "settings.general.sounds.errors.description",
   },
 } as const
+const agentSplitLayoutOptions = ["side-by-side", "stacked", "grid"] as const
 
 const PermissionScopeSetting: Component<{ controller: PermissionScopeController }> = (props) => {
   const language = useLanguage()
@@ -368,6 +369,43 @@ export const SettingsGeneralV2: Component<{
             />
           </div>
         </SettingsRowV2>
+
+        <Show when={desktop()}>
+          <SettingsRowV2
+            title={language.t("settings.general.row.agentSplit.title")}
+            description={language.t("settings.general.row.agentSplit.description")}
+          >
+            <div class="flex flex-wrap justify-end gap-2">
+              <div data-action="settings-show-agent-split-view">
+                <Switch
+                  checked={settings.general.showAgentSplitView()}
+                  onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
+                />
+              </div>
+              <SelectV2
+                appearance="inline"
+                data-action="settings-agent-split-layout"
+                options={agentSplitLayoutOptions.slice()}
+                current={settings.general.agentSplitLayout()}
+                placement="bottom-end"
+                gutter={6}
+                value={(option) => option}
+                label={(option) => language.t(`settings.general.row.agentSplit.layout.${option}`)}
+                onSelect={(option) => option && settings.general.setAgentSplitLayout(option)}
+              />
+              <div class="w-20" data-action="settings-agent-split-pane-limit">
+                <TextInputV2
+                  type="number"
+                  min="2"
+                  max="8"
+                  value={String(settings.general.agentSplitPaneLimit())}
+                  onInput={(event) => settings.general.setAgentSplitPaneLimit(Number(event.currentTarget.value))}
+                  aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
+                />
+              </div>
+            </div>
+          </SettingsRowV2>
+        </Show>
 
         <Show when={mobile() && import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"}>
           <SettingsRowV2
