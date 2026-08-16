@@ -218,6 +218,7 @@ export const SettingsGeneral: Component = () => {
 
   const noneSound = { id: "none", label: "sound.option.none" } as const
   const soundOptions = [noneSound, ...SOUND_OPTIONS]
+  const agentSplitLayoutOptions = ["side-by-side", "stacked", "grid"] as const
   const mono = () => monoInput(settings.appearance.font())
   const sans = () => sansInput(settings.appearance.uiFont())
   const terminal = () => terminalInput(settings.appearance.terminalFont())
@@ -382,6 +383,43 @@ export const SettingsGeneral: Component = () => {
             />
           </div>
         </SettingsRow>
+
+        <Show when={desktop()}>
+          <SettingsRow
+            title={language.t("settings.general.row.agentSplit.title")}
+            description={language.t("settings.general.row.agentSplit.description")}
+          >
+            <div class="flex flex-wrap justify-end gap-2">
+              <div data-action="settings-show-agent-split-view">
+                <Switch
+                  checked={settings.general.showAgentSplitView()}
+                  onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
+                />
+              </div>
+              <Select
+                data-action="settings-agent-split-layout"
+                options={agentSplitLayoutOptions.slice()}
+                current={settings.general.agentSplitLayout()}
+                value={(option) => option}
+                label={(option) => language.t(`settings.general.row.agentSplit.layout.${option}`)}
+                onSelect={(option) => option && settings.general.setAgentSplitLayout(option)}
+                variant="secondary"
+                size="small"
+                triggerVariant="settings"
+              />
+              <div class="w-20" data-action="settings-agent-split-pane-limit">
+                <TextField
+                  type="number"
+                  min="2"
+                  max="8"
+                  value={String(settings.general.agentSplitPaneLimit())}
+                  onChange={(value) => settings.general.setAgentSplitPaneLimit(Number(value))}
+                  aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
+                />
+              </div>
+            </div>
+          </SettingsRow>
+        </Show>
       </SettingsList>
     </div>
   )

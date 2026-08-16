@@ -34,6 +34,9 @@ export interface Settings {
     editToolPartsExpanded: boolean
     showCustomAgents: boolean
     mobileTitlebarPosition: "top" | "bottom"
+    showAgentSplitView: boolean
+    agentSplitLayout: "side-by-side" | "stacked" | "grid"
+    agentSplitPaneLimit: number
     newLayoutDesigns?: boolean
     layoutTransitionEligible?: boolean
     agentVisibilityInitialized?: boolean
@@ -195,6 +198,9 @@ const defaultSettings: Settings = {
     editToolPartsExpanded: false,
     showCustomAgents: false,
     mobileTitlebarPosition: "top",
+    showAgentSplitView: false,
+    agentSplitLayout: "side-by-side",
+    agentSplitPaneLimit: 4,
   },
   appearance: {
     fontSize: 14,
@@ -427,6 +433,43 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         ),
         setMobileTitlebarPosition(value: "top" | "bottom") {
           setStore("general", "mobileTitlebarPosition", value)
+        },
+        showAgentSplitView: withFallback(
+          () => typeof store.general?.showAgentSplitView === "boolean" ? store.general?.showAgentSplitView : undefined,
+          defaultSettings.general.showAgentSplitView,
+        ),
+        setShowAgentSplitView(value: boolean) {
+          setStore("general", "showAgentSplitView", value)
+        },
+        agentSplitLayout: withFallback(
+          () => (
+            store.general?.agentSplitLayout === "side-by-side"
+              || store.general?.agentSplitLayout === "stacked"
+              || store.general?.agentSplitLayout === "grid"
+              ? store.general?.agentSplitLayout
+              : undefined
+          ),
+          defaultSettings.general.agentSplitLayout,
+        ),
+        setAgentSplitLayout(value: "side-by-side" | "stacked" | "grid") {
+          setStore("general", "agentSplitLayout", value)
+        },
+        agentSplitPaneLimit: withFallback(
+          () => (
+            typeof store.general?.agentSplitPaneLimit === "number"
+              && store.general?.agentSplitPaneLimit >= 2
+              && store.general?.agentSplitPaneLimit <= 8
+              ? store.general?.agentSplitPaneLimit
+              : undefined
+          ),
+          defaultSettings.general.agentSplitPaneLimit,
+        ),
+        setAgentSplitPaneLimit(value: number) {
+          setStore(
+            "general",
+            "agentSplitPaneLimit",
+            typeof value === "number" && value >= 2 && value <= 8 ? value : 4,
+          )
         },
         newLayoutDesigns,
         setNewLayoutDesigns(value: boolean) {

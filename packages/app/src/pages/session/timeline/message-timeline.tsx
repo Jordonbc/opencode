@@ -54,6 +54,7 @@ import type {
 } from "@opencode-ai/sdk/v2"
 import { showToast } from "@/utils/toast"
 import { downloadSessionExport, fetchSessionExport, sessionExportFilename } from "@/utils/session-export"
+import { base64Encode } from "@opencode-ai/core/util/encode"
 import { getDirectory, getFilename } from "@opencode-ai/core/util/path"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { normalize } from "@opencode-ai/session-ui/session-diff"
@@ -67,6 +68,7 @@ import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
+import { type ServerScope, SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
 import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
@@ -235,7 +237,15 @@ function TimelineDiffView(props: { diff: SummaryDiff }) {
   )
 }
 
-export function MessageTimeline(props: {
+export type TimelineViewerProps = {
+  // Route-independent props
+  sessionID: string
+  serverScope: ServerScope
+  directory: string
+  revertMessageID?: string
+  isReadOnly: boolean
+  onNavigateToSession?: (id: string) => void
+  // Scroll and UI props
   actions?: UserActions
   scroll: { overflow: boolean; bottom: boolean; jump: boolean }
   onResumeScroll: () => void
@@ -255,26 +265,30 @@ export function MessageTimeline(props: {
   setRevealMessage?: (fn: (id: string) => void) => void
   setScrollToEnd?: (fn: () => void) => void
   setHistoryAnchor?: (handlers: { capture: () => void; restore: (done: boolean) => void }) => void
-}) {
+}
+
+export function TimelineViewer(props: TimelineViewerProps) {
   let touchGesture: number | undefined
 
-  const navigate = useNavigate()
   const serverSDK = useServerSDK()
   const sdk = useSDK()
   const sync = useSync()
   const settings = useSettings()
-  const tabs = useTabs()
   const dialog = useDialog()
   const language = useLanguage()
-  const { params, sessionKey } = useSessionKey()
+  const platform = usePlatform()
+
+  const encodedDirectory = createMemo(() => base64Encode(props.directory))
+  const sessionKey = createMemo(() =>
+    SessionStateKey.from(props.serverScope, SessionRouteKey.fromRoute(encodedDirectory(), props.sessionID))
+  )
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
   const initialMeasurements = cached?.measurements
   const coldBottomMount = !initialMeasurements?.length && props.shouldAnchorBottom()
-  const platform = usePlatform()
 
   const [listRoot, setListRoot] = createSignal<HTMLDivElement>()
-  const sessionID = createMemo(() => params.id)
+  const sessionID = () => props.sessionID
   const sessionStatus = createMemo(() => {
     const id = sessionID()
     if (!id) return idle
@@ -791,22 +805,17 @@ export function MessageTimeline(props: {
   }
 
   const navigateAfterSessionRemoval = (sessionID: string, parentID?: string, nextSessionID?: string) => {
-    if (params.id !== sessionID) return
-    const href = (id: string) =>
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id)
+    if (props.sessionID !== sessionID) return
     if (parentID) {
-      navigate(href(parentID))
+      props.onNavigateToSession?.(parentID)
       return
     }
     if (nextSessionID) {
-      navigate(href(nextSessionID))
+      props.onNavigateToSession?.(nextSessionID)
       return
     }
-    if (params.serverKey) {
-      tabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
-      return
-    }
-    navigate(`/${params.dir}/session`)
+    // No more sessions — signal empty to the adapter
+    props.onNavigateToSession?.("")
   }
 
   const exportSession = async (sessionID: string) => {
@@ -842,7 +851,7 @@ export function MessageTimeline(props: {
     const nextSession = index === -1 ? undefined : (sessions[index + 1] ?? sessions[index - 1])
 
     await sdk()
-      .client.session.update({ sessionID, directory: sdk().directory, time: { archived: Date.now() } })
+      .client.session.update({ sessionID, directory: props.directory, time: { archived: Date.now() } })
       .then(() => {
         sync().set(
           produce((draft) => {
@@ -852,7 +861,7 @@ export function MessageTimeline(props: {
         )
         sync().session.evict(sessionID)
         navigateAfterSessionRemoval(sessionID, session.parentID, nextSession?.id)
-        notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [sessionID] })
+        notifySessionTabsRemoved({ directory: props.directory, sessionIDs: [sessionID] })
       })
       .catch((err) => {
         showToast({
@@ -922,16 +931,14 @@ export function MessageTimeline(props: {
     for (const id of removed) {
       sync().session.evict(id)
     }
-    notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [...removed] })
+    notifySessionTabsRemoved({ directory: props.directory, sessionIDs: [...removed] })
     return true
   }
 
   const navigateParent = () => {
     const id = parentID()
     if (!id) return
-    navigate(
-      params.serverKey ? sessionHref(requireServerKey(params.serverKey), id) : legacySessionHref(sdk().directory, id),
-    )
+    props.onNavigateToSession?.(id)
   }
 
   function DialogDeleteSession(props: { sessionID: string }) {
@@ -1890,5 +1897,60 @@ export function MessageTimeline(props: {
         </div>
       </ScrollView>
     </div>
+  )
+}
+
+export function MessageTimeline(props: {
+  actions?: UserActions
+  scroll: { overflow: boolean; bottom: boolean; jump: boolean }
+  onResumeScroll: () => void
+  setScrollRef: (el: HTMLDivElement | undefined) => void
+  onScheduleScrollState: (el: HTMLDivElement) => void
+  onAutoScrollHandleScroll: () => void
+  onMarkScrollGesture: (target?: EventTarget | null) => void
+  hasScrollGesture: () => boolean
+  onUserScroll: () => void
+  onHistoryScroll: () => void
+  onAutoScrollInteraction: (event: MouseEvent) => void
+  shouldAnchorBottom: () => boolean
+  centered: boolean
+  setContentRef: (el: HTMLDivElement) => void
+  userMessages: UserMessage[]
+  anchor: (id: string) => string
+  setRevealMessage?: (fn: (id: string) => void) => void
+  setScrollToEnd?: (fn: () => void) => void
+  setHistoryAnchor?: (handlers: { capture: () => void; restore: (done: boolean) => void }) => void
+}) {
+  const navigate = useNavigate()
+  const { params } = useSessionKey()
+  const sdk = useSDK()
+  const serverSDK = useServerSDK()
+  const tabs = useTabs()
+
+  const onNavigateToSession = (id: string) => {
+    if (!id) {
+      // No more sessions — open new draft or go to session list
+      if (params.serverKey) {
+        tabs.newDraft({ server: requireServerKey(params.serverKey), directory: sdk().directory })
+        return
+      }
+      navigate(`/${params.dir}/session`)
+      return
+    }
+    const href = params.serverKey
+      ? sessionHref(requireServerKey(params.serverKey), id)
+      : legacySessionHref(sdk().directory, id)
+    navigate(href)
+  }
+
+  return (
+    <TimelineViewer
+      {...props}
+      sessionID={params.id ?? ""}
+      serverScope={serverSDK().scope}
+      directory={sdk().directory}
+      isReadOnly={false}
+      onNavigateToSession={onNavigateToSession}
+    />
   )
 }
