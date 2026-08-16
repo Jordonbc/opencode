@@ -103,6 +103,9 @@ import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/sessio
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
 import { createSessionOwnership } from "./session/session-ownership"
 import { createSessionLineage } from "./session/session-lineage"
+import { useSubagentSessions } from "./session/use-subagent-sessions"
+import { AgentSplitPanel } from "./session/agent-split-panel"
+import { AgentPane } from "./session/agent-pane"
 
 type FollowupItem = FollowupDraft & { id: string }
 type FollowupEdit = Pick<FollowupItem, "id" | "prompt" | "context">
@@ -375,6 +378,40 @@ export default function Page() {
   const reviewFile = () => view().review.file()
   const sessionOwnership = createSessionOwnership(sessionKey)
   const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const { sessions: childSessions, overflow: childOverflow, total: childTotal } = useSubagentSessions()
+  const agentSplitVisible = createMemo(
+    () =>
+      settings.general.showAgentSplitView() &&
+      isDesktop() &&
+      newSessionDesign() &&
+      !!params.id &&
+      childTotal() > 0,
+  )
+  const agentSplitPaneLimit = createMemo(() => Math.min(8, Math.max(2, settings.general.agentSplitPaneLimit())))
+
+  // Auto-show agent split panel when visibility transitions false→true
+  createEffect(
+    on(
+      agentSplitVisible,
+      (visible, prev) => {
+        if (!prev && visible) {
+          view().agentSplit.open()
+        }
+      },
+      { defer: true },
+    ),
+  )
+
+  // Close agent split panel on session-key change
+  createEffect(
+    on(
+      sessionKey,
+      () => {
+        view().agentSplit.close()
+      },
+      { defer: true },
+    ),
+  )
 
   createEffect(() => {
     if (!prompt.ready()) return
@@ -2300,6 +2337,23 @@ export default function Page() {
             </div>
           </Show>
         </div>
+        <Show when={agentSplitVisible() && view().agentSplit.opened()}>
+          <AgentSplitPanel
+            sessions={childSessions().map((session) => (
+              <AgentPane
+                sessionID={session.id}
+                title={session.title}
+                agent={session.agent}
+                status={session.status}
+                model={`${session.model.providerID}/${session.model.modelID}`}
+              />
+            ))}
+            layout="side-by-side"
+            overflow={childOverflow()}
+            paneLimit={agentSplitPaneLimit()}
+          />
+        </Show>
+
 
         <Show when={!newSessionDesign() && desktopSidePanelOpen()}>
           <Suspense>
