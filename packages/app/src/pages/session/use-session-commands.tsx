@@ -553,6 +553,15 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       keybind: "mod+shift+r",
       onSelect: () => view().reviewPanel.toggle(),
     }),
+    ...(settings.general.showAgentSplitView()
+      ? [
+          viewCommand({
+            id: "session.splitView.toggle",
+            title: language.t("command.splitView.toggle"),
+            onSelect: () => view().agentSplit.toggle(),
+          }),
+        ]
+      : []),
     ...(shown()
       ? [
           viewCommand({

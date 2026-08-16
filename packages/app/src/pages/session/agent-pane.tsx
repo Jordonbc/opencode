@@ -4,6 +4,7 @@ import { TimelineViewer } from "./timeline/message-timeline"
 import { createTimelineModel } from "./timeline/model"
 import { useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
+import { useLanguage } from "@/context/language"
 import { ServerScope } from "@/utils/server-scope"
 import { sessionHref } from "@/utils/session-route"
 
@@ -20,6 +21,7 @@ export function AgentPane(props: AgentPaneProps) {
   const navigate = useNavigate()
   const server = useServer()
   const sync = useSync()
+  const language = useLanguage()
   const [closed, setClosed] = createSignal(false)
   const [tombstone, setTombstone] = createSignal(false)
   const [seen, setSeen] = createSignal(false)
@@ -51,8 +53,10 @@ export function AgentPane(props: AgentPaneProps) {
         class="agent-pane flex min-h-0 flex-1 flex-col overflow-hidden"
         data-component="agent-pane"
         data-session-id={props.sessionID}
+        role="region"
+        aria-label={`${props.title} — ${props.agent}`}
       >
-        <header class="agent-pane-header flex items-center gap-2 border-b px-3 py-2">
+        <header class="agent-pane-header flex items-center gap-2 border-block-end px-3 py-2">
           <span class="agent-pane-title min-w-0 flex-1 truncate font-medium">{props.title}</span>
           <span class="agent-pane-agent text-muted-foreground truncate text-xs">{props.agent}</span>
           <span class="agent-pane-model rounded bg-surface-raised px-1.5 py-0.5 text-xs" data-model={props.model}>
@@ -68,11 +72,11 @@ export function AgentPane(props: AgentPaneProps) {
             <ErrorBoundary
               fallback={(error, reset) => (
                 <div class="agent-pane-error flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
-                  <p>Unable to load session.</p>
+                  <p>{language.t("agent.pane.error.loadFailed")}</p>
                   <p class="text-muted-foreground text-xs">{String(error)}</p>
                   <div class="flex gap-2">
-                    <button type="button" onClick={reset}>Retry</button>
-                    <button type="button" onClick={() => setClosed(true)}>Close</button>
+                    <button type="button" onClick={reset}>{language.t("agent.pane.error.retry")}</button>
+                    <button type="button" onClick={() => setClosed(true)}>{language.t("agent.pane.error.close")}</button>
                   </div>
                 </div>
               )}
@@ -100,11 +104,11 @@ export function AgentPane(props: AgentPaneProps) {
               />
             </ErrorBoundary>
           }>
-            <div class="agent-pane-tombstone flex h-full items-center justify-center text-muted-foreground">Session ended</div>
+            <div class="agent-pane-tombstone flex h-full items-center justify-center text-muted-foreground">{language.t("agent.pane.sessionEnded")}</div>
           </Show>
         </div>
-        <footer class="agent-pane-footer border-t px-3 py-2">
-          <button type="button" onClick={openSession}>Open Full Session</button>
+        <footer class="agent-pane-footer border-block-start px-3 py-2">
+          <button type="button" onClick={openSession}>{language.t("agent.pane.openFullSession")}</button>
         </footer>
       </section>
     </Show>
