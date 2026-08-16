@@ -82,7 +82,11 @@ import {
   sessionPanelWidthMax,
 } from "@/pages/session/session-panel-width"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
-import { sessionPanelLayout } from "@/pages/session/session-panel-layout"
+import {
+  agentSplitWidth,
+  sessionPanelColumnLayout,
+  sessionPanelLayout,
+} from "@/pages/session/session-panel-layout"
 import { SessionReviewEmptyChangesV2 } from "@opencode-ai/session-ui/v2/session-review-empty-changes-v2"
 import { SessionReviewEmptyNoGitV2 } from "@opencode-ai/session-ui/v2/session-review-empty-no-git-v2"
 import { SessionReviewV2SidebarToggle } from "@opencode-ai/session-ui/v2/session-review-v2"
@@ -388,6 +392,7 @@ export default function Page() {
       !!params.id &&
       childTotal() > 0,
   )
+  const agentSplitOpen = createMemo(() => agentSplitVisible() && view().agentSplit.opened())
   const agentSplitPaneLimit = createMemo(() => Math.min(8, Math.max(2, settings.general.agentSplitPaneLimit())))
 
   // Auto-show agent split panel when visibility transitions false→true
@@ -519,6 +524,10 @@ export default function Page() {
     if (width === undefined) return undefined
     return width - (settings.general.newLayoutDesigns() ? 8 : 0)
   })
+  const agentSplitAvailable = createMemo(() => sessionPanelAvailable() ?? (typeof window === "undefined" ? 1200 : window.innerWidth))
+  const agentSplitPanelWidth = createMemo(() =>
+    agentSplitWidth({ width: view().agentSplit.width(), available: agentSplitAvailable() }),
+  )
   const sessionPanelMax = createMemo(() => {
     const available = sessionPanelAvailable()
     if (available === undefined) return 1000
@@ -534,11 +543,15 @@ export default function Page() {
     }),
   )
   const sessionPanelWidth = createMemo(() => {
+    if (agentSplitOpen()) return "auto"
     if (!desktopSidePanelOpen()) return "100%"
     if (desktopSessionResizeOpen()) return `${sessionPanelResizedWidth()}px`
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
   const centered = createMemo(() => isDesktop() && (newSessionDesign() || !desktopReviewOpen()))
+  const sessionColumnLayout = createMemo(() =>
+    sessionPanelColumnLayout({ agentOpen: agentSplitOpen(), sidebarOpen: desktopSidePanelOpen() }),
+  )
   const desktopV2PanelLayout = createMemo(() =>
     sessionPanelLayout({
       review: desktopV2ReviewOpen(),
@@ -2288,16 +2301,20 @@ export default function Page() {
       <SessionHeader />
       <div
         ref={panelRow}
-        class="flex-1 min-h-0 flex flex-col md:flex-row"
+        class="flex-1 min-h-0 flex flex-col"
         classList={{
           "gap-2 p-2": settings.general.newLayoutDesigns(),
+          "md:flex-row": settings.general.agentSplitLayout() !== "stacked" || !agentSplitOpen(),
+          "md:flex-col": settings.general.agentSplitLayout() === "stacked" && agentSplitOpen(),
         }}
       >
         <Show when={!isDesktop() && !!params.id && !settings.general.newLayoutDesigns()}>{mobileTabs()}</Show>
 
         <div
           classList={{
-            "@container relative shrink-0 flex flex-col min-h-0 h-full flex-1 md:flex-none transition-[width]": true,
+            "@container relative flex min-w-0 flex-col min-h-0 h-full transition-[width]": true,
+            "flex-1 min-w-0": sessionColumnLayout().flexible,
+            "shrink-0 md:flex-none": !sessionColumnLayout().flexible,
             "duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
               !size.active() && !ui.reviewSnap && !desktopInlineTerminalOnlyOpen(),
           }}
@@ -2337,7 +2354,7 @@ export default function Page() {
             </div>
           </Show>
         </div>
-        <Show when={agentSplitVisible() && view().agentSplit.opened()}>
+        <Show when={agentSplitOpen()}>
           <AgentSplitPanel
             sessions={childSessions().map((session) => (
               <AgentPane
@@ -2348,7 +2365,14 @@ export default function Page() {
                 model={`${session.model.providerID}/${session.model.modelID}`}
               />
             ))}
-            layout="side-by-side"
+            layout={settings.general.agentSplitLayout()}
+            width={agentSplitPanelWidth()}
+            maxWidth={
+              settings.general.agentSplitLayout() === "stacked"
+                ? (typeof window === "undefined" ? 1200 : window.innerHeight) * 0.6
+                : agentSplitAvailable() * 0.6
+            }
+            onWidthChange={view().agentSplit.setWidth}
             overflow={childOverflow()}
             paneLimit={agentSplitPaneLimit()}
           />

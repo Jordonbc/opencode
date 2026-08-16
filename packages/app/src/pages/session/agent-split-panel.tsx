@@ -1,54 +1,53 @@
-import { For, Show, createSignal, type JSX } from "solid-js"
-import { createStore } from "solid-js/store"
+import { For, Show, type JSX } from "solid-js"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Tag } from "@opencode-ai/ui/v2/badge-v2"
 import { useLanguage } from "@/context/language"
+import type { AgentSplitLayout } from "./session-panel-layout"
 
 const RESIZE_STEP_PX = 20
-const MIN_SIZE_PX = { horizontal: 200, vertical: 300 }
-const MAX_SIZE_PERCENT = 60
-export type AgentSplitPanelLayout = "side-by-side" | "stacked" | "grid"
+const MIN_SIZE_PX = 300
+export type AgentSplitPanelLayout = AgentSplitLayout
 
 export interface AgentSplitPanelProps {
   sessions: readonly JSX.Element[]
   layout: AgentSplitPanelLayout
+  width: number
+  maxWidth: number
+  onWidthChange: (width: number) => void
   overflow: number
   paneLimit: number
 }
 
 export function AgentSplitPanel(props: AgentSplitPanelProps) {
   const language = useLanguage()
-  const [state, setState] = createStore({ size: 50 })
-  const [overflowExpanded, setOverflowExpanded] = createSignal(false)
-  const direction = (): "horizontal" | "vertical" => (props.layout === "side-by-side" ? "vertical" : "horizontal")
-  const className = () => {
-    if (props.layout === "side-by-side") return "agent-split-panel__panes agent-split-panel__panes--side-by-side"
-    if (props.layout === "stacked") return "agent-split-panel__panes agent-split-panel__panes--stacked"
-    return "agent-split-panel__panes agent-split-panel__panes--grid"
-  }
-  const paneStyle = (): JSX.CSSProperties | undefined => {
-    if (props.layout === "grid") return undefined
-    const maxSize = Math.min(state.size, MAX_SIZE_PERCENT)
-    return props.layout === "side-by-side" ? { "max-height": `${maxSize}%` } : { "max-width": `${maxSize}%` }
-  }
+  const widthResize = () => props.layout !== "stacked"
+  const direction = (): "horizontal" | "vertical" => (widthResize() ? "horizontal" : "vertical")
+  const className = () =>
+    props.layout === "side-by-side"
+      ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
+      : props.layout === "stacked"
+        ? "flex min-h-0 min-w-0 flex-1 flex-row overflow-auto"
+        : "grid min-h-0 min-w-0 flex-1 grid-cols-2 overflow-auto"
   const handleKeyboard = (e: KeyboardEvent) => {
-    const dir = direction()
-    const min = MIN_SIZE_PX[dir]
     const step = RESIZE_STEP_PX
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-      e.preventDefault()
-      setState("size", (prev) => Math.max(min / (window.innerHeight / 100), prev - step))
-    } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-      e.preventDefault()
-      setState("size", (prev) => Math.min(MAX_SIZE_PERCENT, prev + step))
-    }
+    const rtl = widthResize() && e.currentTarget instanceof Element && getComputedStyle(e.currentTarget).direction === "rtl"
+    const increase = widthResize() ? (rtl ? e.key === "ArrowRight" : e.key === "ArrowLeft") : e.key === "ArrowUp"
+    const decrease = widthResize() ? (rtl ? e.key === "ArrowLeft" : e.key === "ArrowRight") : e.key === "ArrowDown"
+    if (!increase && !decrease) return
+    e.preventDefault()
+    props.onWidthChange(
+      increase ? Math.min(props.maxWidth, props.width + step) : Math.max(MIN_SIZE_PX, props.width - step),
+    )
   }
 
   return (
     <section
       data-component="agent-split-panel"
       data-layout={props.layout}
-      role="group"
+      class="flex min-h-0 min-w-0 shrink-0 overflow-hidden border-s border-border-weaker-base"
+      style={widthResize()
+        ? { width: `${props.width}px`, "min-width": `${MIN_SIZE_PX}px`, "max-width": `${props.maxWidth}px`, "min-height": "0" }
+        : { width: "100%", height: `${props.width}px`, "min-height": `${MIN_SIZE_PX}px`, "max-height": `${props.maxWidth}px` }}
       aria-label={language.t("agent.split.overflow", { count: String(props.sessions.length) })}
     >
       <Show when={props.overflow > 0}>
@@ -65,24 +64,25 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
         when={props.sessions.length > 0}
         fallback={<div data-slot="empty-state" aria-hidden="true" />}
       >
-        <div class={className()} style={{ "overflow-y": "auto", "overscroll-behavior": "contain" }}>
+        <div class={className()} style={{ "overscroll-behavior": "contain" }}>
           <For each={props.sessions}>
-            {(session) => <div class="agent-split-panel__pane" style={paneStyle()}>{session}</div>}
+            {(session) => <div class="min-h-0 min-w-0 flex-1 overflow-hidden">{session}</div>}
           </For>
         </div>
         <ResizeHandle
           data-slot="resize-handle"
           direction={direction()}
-          size={state.size}
-          min={MIN_SIZE_PX[direction()] / (direction() === "horizontal" ? window.innerWidth : window.innerHeight) * 100}
-          max={MAX_SIZE_PERCENT}
-          onResize={(size) => setState("size", size)}
+          edge="start"
+          size={props.width}
+          min={MIN_SIZE_PX}
+          max={props.maxWidth}
+          onResize={props.onWidthChange}
           tabindex={0}
           role="separator"
-          aria-orientation={direction() === "horizontal" ? "horizontal" : "vertical"}
-          aria-valuenow={state.size}
-          aria-valuemin={0}
-          aria-valuemax={MAX_SIZE_PERCENT}
+          aria-orientation={widthResize() ? "vertical" : "horizontal"}
+          aria-valuenow={props.width}
+          aria-valuemin={MIN_SIZE_PX}
+          aria-valuemax={props.maxWidth}
           onKeyDown={handleKeyboard}
         />
       </Show>
