@@ -1,7 +1,8 @@
 export type AgentSplitLayout = "side-by-side" | "stacked" | "grid"
 
-export function agentSplitWidth(input: { width: number; available: number }) {
-  return Math.min(Math.max(300, input.width), input.available * 0.6)
+export function agentSplitWidth(input: { width: number; available: number; layout?: AgentSplitLayout }) {
+  const maxPercent = input.layout === "grid" ? 0.5 : 0.6
+  return Math.min(Math.max(300, input.width), input.available * maxPercent)
 }
 
 export function sessionPanelColumnLayout(input: { agentOpen: boolean; sidebarOpen: boolean }) {

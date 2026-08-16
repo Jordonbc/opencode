@@ -370,53 +370,6 @@ export const SettingsGeneralV2: Component<{
           </div>
         </SettingsRowV2>
 
-        <Show when={desktop()}>
-          <SettingsRowV2
-            title={language.t("settings.general.row.agentSplit.title")}
-            description={language.t("settings.general.row.agentSplit.description")}
-          >
-            <div class="flex flex-wrap justify-end gap-2">
-              <div data-action="settings-show-agent-split-view">
-                <Switch
-                  checked={settings.general.showAgentSplitView()}
-                  onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
-                />
-              </div>
-              <SelectV2
-                appearance="inline"
-                data-action="settings-agent-split-layout"
-                options={agentSplitLayoutOptions.slice()}
-                current={settings.general.agentSplitLayout()}
-                placement="bottom-end"
-                gutter={6}
-                value={(option) => option}
-                label={(option) => language.t(`settings.general.row.agentSplit.layout.${option}`)}
-                onSelect={(option) => option && settings.general.setAgentSplitLayout(option)}
-              />
-              <div class="w-20" data-action="settings-agent-split-pane-limit">
-                <TextInputV2
-                  type="number"
-                  min="2"
-                  max="8"
-                  value={String(settings.general.agentSplitPaneLimit())}
-                  onInput={(event) => settings.general.setAgentSplitPaneLimit(Number(event.currentTarget.value))}
-                  aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
-                />
-              </div>
-              <div class="w-24" data-action="settings-agent-split-idle-hide-ms">
-                <TextInputV2
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={String(settings.general.agentSplitIdleHideMs() / 1000)}
-                  onInput={(event) => settings.general.setAgentSplitIdleHideMs(Number(event.currentTarget.value) * 1000)}
-                  aria-label={language.t("settings.general.row.agentSplit.idleHideSeconds")}
-                />
-              </div>
-            </div>
-          </SettingsRowV2>
-        </Show>
-
         <Show when={mobile() && import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"}>
           <SettingsRowV2
             title={language.t("settings.general.row.mobileTitlebarBottom.title")}
@@ -429,6 +382,79 @@ export const SettingsGeneralV2: Component<{
               />
             </div>
           </SettingsRowV2>
+        </Show>
+      </SettingsListV2>
+    </div>
+  )
+
+  const AgentSplitSection = () => (
+    <div class="settings-v2-section">
+      <h3 class="settings-v2-section-title">{language.t("settings.general.row.agentSplit.title")}</h3>
+
+      <SettingsListV2>
+        <Show when={desktop()}>
+          <SettingsRowV2
+            title={language.t("settings.general.row.agentSplit.title")}
+            description={language.t("settings.general.row.agentSplit.description")}
+          >
+            <div data-action="settings-show-agent-split-view">
+              <Switch
+                checked={settings.general.showAgentSplitView()}
+                onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
+              />
+            </div>
+          </SettingsRowV2>
+
+          <Show when={settings.general.showAgentSplitView()}>
+            <SettingsRowV2
+              title={language.t("settings.general.row.agentSplit.layout.title")}
+              description={language.t("settings.general.row.agentSplit.layout.description")}
+            >
+              <SelectV2
+                appearance="inline"
+                data-action="settings-agent-split-layout"
+                options={agentSplitLayoutOptions.slice()}
+                current={settings.general.agentSplitLayout()}
+                placement="bottom-end"
+                gutter={6}
+                value={(option) => option}
+                label={(option) => language.t(`settings.general.row.agentSplit.layout.${option}`)}
+                onSelect={(option) => option && settings.general.setAgentSplitLayout(option)}
+              />
+            </SettingsRowV2>
+
+            <SettingsRowV2
+              title={language.t("settings.general.row.agentSplit.paneLimit.title")}
+              description={language.t("settings.general.row.agentSplit.paneLimit.description")}
+            >
+              <div class="w-20" data-action="settings-agent-split-pane-limit">
+                <TextInputV2
+                  type="number"
+                  min="2"
+                  max="8"
+                  value={String(settings.general.agentSplitPaneLimit())}
+                  onInput={(event) => settings.general.setAgentSplitPaneLimit(Number(event.currentTarget.value))}
+                  aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
+                />
+              </div>
+            </SettingsRowV2>
+
+            <SettingsRowV2
+              title={language.t("settings.general.row.agentSplit.idleHideSeconds.title")}
+              description={language.t("settings.general.row.agentSplit.idleHideSeconds.description")}
+            >
+              <div class="w-24" data-action="settings-agent-split-idle-hide-ms">
+                <TextInputV2
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={String(settings.general.agentSplitIdleHideMs() / 1000)}
+                  onInput={(event) => settings.general.setAgentSplitIdleHideMs(Number(event.currentTarget.value) * 1000)}
+                  aria-label={language.t("settings.general.row.agentSplit.idleHideSeconds")}
+                />
+              </div>
+            </SettingsRowV2>
+          </Show>
         </Show>
       </SettingsListV2>
     </div>
@@ -599,6 +625,8 @@ export const SettingsGeneralV2: Component<{
         </Show>
 
         <GeneralSection />
+
+        <AgentSplitSection />
 
         <AppearanceSection controller={appearance} />
 

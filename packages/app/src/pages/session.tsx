@@ -538,7 +538,7 @@ export default function Page() {
   })
   const agentSplitAvailable = createMemo(() => sessionPanelAvailable() ?? (typeof window === "undefined" ? 1200 : window.innerWidth))
   const agentSplitPanelWidth = createMemo(() =>
-    agentSplitWidth({ width: view().agentSplit.width(), available: agentSplitAvailable() }),
+    agentSplitWidth({ width: view().agentSplit.width(), available: agentSplitAvailable(), layout: settings.general.agentSplitLayout() }),
   )
   const sessionPanelMax = createMemo(() => {
     const available = sessionPanelAvailable()

@@ -383,19 +383,33 @@ export const SettingsGeneral: Component = () => {
             />
           </div>
         </SettingsRow>
+      </SettingsList>
+    </div>
+  )
 
+  const AgentSplitSection = () => (
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.row.agentSplit.title")}</h3>
+
+      <SettingsList>
         <Show when={desktop()}>
           <SettingsRow
             title={language.t("settings.general.row.agentSplit.title")}
             description={language.t("settings.general.row.agentSplit.description")}
           >
-            <div class="flex flex-wrap justify-end gap-2">
-              <div data-action="settings-show-agent-split-view">
-                <Switch
-                  checked={settings.general.showAgentSplitView()}
-                  onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
-                />
-              </div>
+            <div data-action="settings-show-agent-split-view">
+              <Switch
+                checked={settings.general.showAgentSplitView()}
+                onChange={(checked) => settings.general.setShowAgentSplitView(checked)}
+              />
+            </div>
+          </SettingsRow>
+
+          <Show when={settings.general.showAgentSplitView()}>
+            <SettingsRow
+              title={language.t("settings.general.row.agentSplit.layout.title")}
+              description={language.t("settings.general.row.agentSplit.layout.description")}
+            >
               <Select
                 data-action="settings-agent-split-layout"
                 options={agentSplitLayoutOptions.slice()}
@@ -407,6 +421,12 @@ export const SettingsGeneral: Component = () => {
                 size="small"
                 triggerVariant="settings"
               />
+            </SettingsRow>
+
+            <SettingsRow
+              title={language.t("settings.general.row.agentSplit.paneLimit.title")}
+              description={language.t("settings.general.row.agentSplit.paneLimit.description")}
+            >
               <div class="w-20" data-action="settings-agent-split-pane-limit">
                 <TextField
                   type="number"
@@ -417,6 +437,12 @@ export const SettingsGeneral: Component = () => {
                   aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
                 />
               </div>
+            </SettingsRow>
+
+            <SettingsRow
+              title={language.t("settings.general.row.agentSplit.idleHideSeconds.title")}
+              description={language.t("settings.general.row.agentSplit.idleHideSeconds.description")}
+            >
               <div class="w-24" data-action="settings-agent-split-idle-hide-ms">
                 <TextField
                   type="number"
@@ -427,8 +453,8 @@ export const SettingsGeneral: Component = () => {
                   aria-label={language.t("settings.general.row.agentSplit.idleHideSeconds")}
                 />
               </div>
-            </div>
-          </SettingsRow>
+            </SettingsRow>
+          </Show>
         </Show>
       </SettingsList>
     </div>
@@ -805,6 +831,8 @@ export const SettingsGeneral: Component = () => {
         </Show>
 
         <GeneralSection />
+
+        <AgentSplitSection />
 
         <AppearanceSection />
 
