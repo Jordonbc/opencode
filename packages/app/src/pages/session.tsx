@@ -379,6 +379,7 @@ export default function Page() {
   const sessionOwnership = createSessionOwnership(sessionKey)
   const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
   const { sessions: childSessions, overflow: childOverflow, total: childTotal } = useSubagentSessions()
+  const isDesktop = createMediaQuery("(min-width: 768px)")
   const agentSplitVisible = createMemo(
     () =>
       settings.general.showAgentSplitView() &&
@@ -482,7 +483,6 @@ export default function Page() {
     ),
   )
 
-  const isDesktop = createMediaQuery("(min-width: 768px)")
   const size = createSizing()
   const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const desktopV2ReviewOpen = createMemo(() => newSessionDesign() && desktopReviewOpen() && !!params.id)
