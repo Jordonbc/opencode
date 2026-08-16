@@ -3,6 +3,12 @@
 
 _desktop := "packages/desktop"
 
+# Show available desktop workflows.
+default: help
+
+help:
+    @just --list
+
 # Build renderer and main assets (runs prebuild automatically via bun).
 build:
     cd {{ _desktop }} && bun run build
