@@ -1156,4 +1156,10 @@ export const dict = {
   "agent.pane.error.close": "Close",
   "agent.split.overflow": "+{{count}}",
   "agent.split.empty": "",
+  "settings.general.row.agentSplit.title": "Agent Split View",
+  "settings.general.row.agentSplit.description": "Show delegated subagent sessions in split panes",
+  "settings.general.row.agentSplit.layout.side-by-side": "Side by Side",
+  "settings.general.row.agentSplit.layout.stacked": "Stacked",
+  "settings.general.row.agentSplit.layout.grid": "Grid",
+  "settings.general.row.agentSplit.paneLimit": "Pane limit",
 }
