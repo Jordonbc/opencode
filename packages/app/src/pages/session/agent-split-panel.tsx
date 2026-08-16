@@ -22,12 +22,24 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
   const language = useLanguage()
   const widthResize = () => props.layout !== "stacked"
   const direction = (): "horizontal" | "vertical" => (widthResize() ? "horizontal" : "vertical")
+  const gridRows = () =>
+    props.sessions.length <= 3 ? props.sessions.length : props.sessions.length === 4 ? 2 : 3
+  const gridColumns = () => Math.ceil(props.sessions.length / gridRows())
   const className = () =>
     props.layout === "side-by-side"
       ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
       : props.layout === "stacked"
         ? "flex min-h-0 min-w-0 flex-1 flex-row overflow-auto"
-        : `grid min-h-0 min-w-0 flex-1 ${props.sessions.length === 1 ? "grid-cols-1" : "grid-cols-2"} overflow-auto`
+        : `grid min-h-0 min-w-0 flex-1 gap-2 ${props.sessions.length === 1 ? "grid-cols-1" : "grid-cols-2"} overflow-auto`
+  const style = () => {
+    if (props.layout !== "grid") return { "overscroll-behavior": "contain" }
+    return {
+      "overscroll-behavior": "contain",
+      "grid-template-rows": `repeat(${gridRows()}, minmax(0, 1fr))`,
+      "grid-template-columns": `repeat(${gridColumns()}, minmax(0, 1fr))`,
+      "grid-auto-flow": "column",
+    }
+  }
   const handleKeyboard = (e: KeyboardEvent) => {
     const step = RESIZE_STEP_PX
     const rtl = widthResize() && e.currentTarget instanceof Element && getComputedStyle(e.currentTarget).direction === "rtl"
@@ -64,7 +76,7 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
         when={props.sessions.length > 0}
         fallback={<div data-slot="empty-state" aria-hidden="true" />}
       >
-        <div class={className()} style={{ "overscroll-behavior": "contain" }}>
+        <div class={className()} style={style()}>
           <For each={props.sessions}>
             {(session) => <div class="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">{session}</div>}
           </For>

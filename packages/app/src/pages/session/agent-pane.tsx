@@ -72,7 +72,7 @@ export function AgentPane(props: AgentPaneProps) {
   return (
     <Show when={!closed()}>
       <section
-        class="agent-pane flex min-h-0 flex-1 flex-col overflow-hidden"
+        class="agent-pane flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] bg-v2-background-bg-base"
         data-component="agent-pane"
         data-session-id={props.sessionID}
         aria-label={`${props.title} — ${props.agent}`}
