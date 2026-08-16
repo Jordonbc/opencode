@@ -107,9 +107,6 @@ export function AgentPane(props: AgentPaneProps) {
             <div class="agent-pane-tombstone flex h-full items-center justify-center text-muted-foreground">{language.t("agent.pane.sessionEnded")}</div>
           </Show>
         </div>
-        <footer class="agent-pane-footer border-block-start px-3 py-2">
-          <button type="button" onClick={openSession}>{language.t("agent.pane.openFullSession")}</button>
-        </footer>
       </section>
     </Show>
   )
