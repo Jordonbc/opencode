@@ -4,8 +4,7 @@
 _desktop := "packages/desktop"
 
 # Show available desktop workflows.
-default: help
-
+[default]
 help:
     @just --list
 
