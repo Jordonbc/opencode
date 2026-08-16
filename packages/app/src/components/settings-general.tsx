@@ -417,6 +417,16 @@ export const SettingsGeneral: Component = () => {
                   aria-label={language.t("settings.general.row.agentSplit.paneLimit")}
                 />
               </div>
+              <div class="w-24" data-action="settings-agent-split-idle-hide-ms">
+                <TextField
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={String(settings.general.agentSplitIdleHideMs() / 1000)}
+                  onChange={(value) => settings.general.setAgentSplitIdleHideMs(Number(value) * 1000)}
+                  aria-label={language.t("settings.general.row.agentSplit.idleHideSeconds")}
+                />
+              </div>
             </div>
           </SettingsRow>
         </Show>

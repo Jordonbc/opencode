@@ -37,6 +37,7 @@ export interface Settings {
     showAgentSplitView: boolean
     agentSplitLayout: "side-by-side" | "stacked" | "grid"
     agentSplitPaneLimit: number
+    agentSplitIdleHideMs: number
     newLayoutDesigns?: boolean
     layoutTransitionEligible?: boolean
     agentVisibilityInitialized?: boolean
@@ -201,6 +202,7 @@ const defaultSettings: Settings = {
     showAgentSplitView: false,
     agentSplitLayout: "side-by-side",
     agentSplitPaneLimit: 4,
+    agentSplitIdleHideMs: 10_000,
   },
   appearance: {
     fontSize: 14,
@@ -469,6 +471,23 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
             "general",
             "agentSplitPaneLimit",
             typeof value === "number" && value >= 2 && value <= 8 ? value : 4,
+          )
+        },
+        agentSplitIdleHideMs: withFallback(
+          () => (
+            typeof store.general?.agentSplitIdleHideMs === "number"
+              && store.general?.agentSplitIdleHideMs >= 1_000
+              && store.general?.agentSplitIdleHideMs <= 60_000
+              ? store.general?.agentSplitIdleHideMs
+              : undefined
+          ),
+          defaultSettings.general.agentSplitIdleHideMs,
+        ),
+        setAgentSplitIdleHideMs(value: number) {
+          setStore(
+            "general",
+            "agentSplitIdleHideMs",
+            typeof value === "number" && value >= 1_000 && value <= 60_000 ? value : 10_000,
           )
         },
         newLayoutDesigns,

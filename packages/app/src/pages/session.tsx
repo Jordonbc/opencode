@@ -390,7 +390,7 @@ export default function Page() {
       isDesktop() &&
       newSessionDesign() &&
       !!params.id &&
-      childTotal() > 0,
+      childSessions().length > 0,
   )
   const agentSplitOpen = createMemo(() => agentSplitVisible() && view().agentSplit.opened())
   const agentSplitPaneLimit = createMemo(() => Math.min(8, Math.max(2, settings.general.agentSplitPaneLimit())))
@@ -408,6 +408,19 @@ export default function Page() {
     ),
   )
 
+  // Auto-close agent split panel when visibility transitions true→false
+  createEffect(
+    on(
+      agentSplitVisible,
+      (visible, prev) => {
+        if (prev && !visible) {
+          view().agentSplit.close()
+        }
+      },
+      { defer: true },
+    ),
+  )
+
   // Close agent split panel on session-key change
   createEffect(
     on(
@@ -418,7 +431,6 @@ export default function Page() {
       { defer: true },
     ),
   )
-
   createEffect(() => {
     if (!prompt.ready()) return
     untrack(() => {

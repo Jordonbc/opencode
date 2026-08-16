@@ -12,7 +12,6 @@ export type ChildSession = {
   model: { providerID: string; modelID: string }
 }
 
-const IDLE_HIDE_MS = 30_000
 const TOMBSTONE_MS = 5_000
 
 function statusType(status: SessionStatus | undefined): "idle" | "busy" | "retry" {
@@ -56,6 +55,11 @@ export function useSubagentSessions() {
   const paneLimit = createMemo(() => {
     const raw = settings.general.agentSplitPaneLimit()
     return Math.min(8, Math.max(2, raw))
+  })
+
+  const idleHideMs = createMemo(() => {
+    const raw = settings.general.agentSplitIdleHideMs()
+    return Math.min(60_000, Math.max(1_000, raw))
   })
 
   // Set of session IDs that have an active idle-hide timer
@@ -115,7 +119,7 @@ export function useSubagentSessions() {
             next.add(child.id)
             return next
           })
-        }, IDLE_HIDE_MS)
+        }, idleHideMs())
         timers.set(`idle:${child.id}`, timer)
       }
     }

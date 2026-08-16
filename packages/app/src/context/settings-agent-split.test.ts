@@ -20,6 +20,7 @@ const defaultSettings: Settings["general"] = {
   showAgentSplitView: false,
   agentSplitLayout: "side-by-side",
   agentSplitPaneLimit: 4,
+  agentSplitIdleHideMs: 10_000,
 }
 
 function withFallback<T>(read: () => T | undefined, fallback: T) {

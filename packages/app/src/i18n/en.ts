@@ -1162,4 +1162,5 @@ export const dict = {
   "settings.general.row.agentSplit.layout.stacked": "Stacked",
   "settings.general.row.agentSplit.layout.grid": "Grid",
   "settings.general.row.agentSplit.paneLimit": "Pane limit",
+  "settings.general.row.agentSplit.idleHideSeconds": "Idle hide (s)",
 }
