@@ -44,7 +44,7 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
     <section
       data-component="agent-split-panel"
       data-layout={props.layout}
-      class="flex min-h-0 min-w-0 shrink-0 overflow-hidden border-s border-border-weaker-base"
+      class="relative flex min-h-0 min-w-0 shrink-0 overflow-hidden border-s border-border-weaker-base"
       style={widthResize()
         ? { width: `${props.width}px`, "min-width": `${MIN_SIZE_PX}px`, "max-width": `${props.maxWidth}px`, "min-height": "0" }
         : { width: "100%", height: `${props.width}px`, "min-height": `${MIN_SIZE_PX}px`, "max-height": `${props.maxWidth}px` }}
@@ -66,7 +66,7 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
       >
         <div class={className()} style={{ "overscroll-behavior": "contain" }}>
           <For each={props.sessions}>
-            {(session) => <div class="min-h-0 min-w-0 flex-1 overflow-hidden">{session}</div>}
+            {(session) => <div class="flex h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">{session}</div>}
           </For>
         </div>
         <ResizeHandle
