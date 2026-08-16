@@ -1,8 +1,8 @@
 export type AgentSplitLayout = "side-by-side" | "stacked" | "grid"
 
 export function agentSplitWidth(input: { width: number; available: number; layout?: AgentSplitLayout }) {
-  const maxPercent = input.layout === "grid" ? 0.5 : 0.6
-  const minForGrid = input.layout === "grid" ? input.available * 0.5 : 300
+  const maxPercent = 0.6
+  const minForGrid = 300
   return Math.min(Math.max(minForGrid, input.width), input.available * maxPercent)
 }
 
