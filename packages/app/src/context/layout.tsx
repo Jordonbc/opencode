@@ -32,6 +32,7 @@ const DEFAULT_FILE_TREE_WIDTH = 200
 const DEFAULT_SESSION_WIDTH = 600
 const DEFAULT_TERMINAL_HEIGHT = 280
 const DEFAULT_REVIEW_PANEL_OPENED = false
+const DEFAULT_AGENT_SPLIT_WIDTH = 400
 export type AvatarColorKey = (typeof AVATAR_COLOR_KEYS)[number]
 
 export function getAvatarColors(key?: string) {
@@ -73,6 +74,10 @@ type SessionView = {
   pendingMessage?: string
   pendingMessageAt?: number
   todoCollapsed?: boolean
+  agentSplit?: {
+    opened: boolean
+    width: number
+  }
 }
 
 type TabHandoff = {
@@ -872,6 +877,70 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
               } else {
                 setStore("sessionView", session, "todoCollapsed", collapsed)
               }
+            },
+          },
+          agentSplit: {
+            opened: createMemo(() => s().agentSplit?.opened ?? false),
+            width: createMemo(() => s().agentSplit?.width ?? DEFAULT_AGENT_SPLIT_WIDTH),
+            open() {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, {
+                  scroll: {},
+                  agentSplit: { opened: true, width: DEFAULT_AGENT_SPLIT_WIDTH },
+                })
+                return
+              }
+              setStore("sessionView", session, "agentSplit", (prev) => ({
+                opened: true,
+                width: prev?.width ?? DEFAULT_AGENT_SPLIT_WIDTH,
+              }))
+            },
+            close() {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, {
+                  scroll: {},
+                  agentSplit: { opened: false, width: DEFAULT_AGENT_SPLIT_WIDTH },
+                })
+                return
+              }
+              setStore("sessionView", session, "agentSplit", (prev) => ({
+                opened: false,
+                width: prev?.width ?? DEFAULT_AGENT_SPLIT_WIDTH,
+              }))
+            },
+            toggle() {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, {
+                  scroll: {},
+                  agentSplit: { opened: true, width: DEFAULT_AGENT_SPLIT_WIDTH },
+                })
+                return
+              }
+              setStore("sessionView", session, "agentSplit", (prev) => ({
+                opened: !(prev?.opened ?? false),
+                width: prev?.width ?? DEFAULT_AGENT_SPLIT_WIDTH,
+              }))
+            },
+            setWidth(width: number) {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, {
+                  scroll: {},
+                  agentSplit: { opened: false, width },
+                })
+                return
+              }
+              setStore("sessionView", session, "agentSplit", (prev) => ({
+                opened: prev?.opened ?? false,
+                width,
+              }))
             },
           },
           terminal: {
