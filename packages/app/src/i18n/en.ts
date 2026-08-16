@@ -1147,4 +1147,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 session will be archived.",
   "workspace.reset.archived.many": "{{count}} sessions will be archived.",
   "workspace.reset.note": "This will reset the workspace to match the default branch.",
+
+  "agent.pane.openFullSession": "Open Full Session",
+  "agent.pane.sessionEnded": "Session ended",
+  "agent.pane.error.loadFailed": "Unable to load session.",
+  "agent.pane.error.retry": "Retry",
+  "agent.pane.error.close": "Close",
+  "agent.split.overflow": "+{{count}}",
+  "agent.split.empty": "",
 }
