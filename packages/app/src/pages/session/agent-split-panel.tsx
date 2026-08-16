@@ -30,7 +30,7 @@ export function AgentSplitPanel(props: AgentSplitPanelProps) {
       ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
       : props.layout === "stacked"
         ? "flex min-h-0 min-w-0 flex-1 flex-row overflow-auto"
-        : `grid min-h-0 min-w-0 flex-1 gap-2 ${props.sessions.length === 1 ? "grid-cols-1" : "grid-cols-2"} overflow-auto`
+        : "grid min-h-0 min-w-0 flex-1 gap-2 overflow-auto"
   const style = () => {
     if (props.layout !== "grid") return { "overscroll-behavior": "contain" }
     return {

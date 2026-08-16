@@ -45,6 +45,31 @@ function sortSessions(a: ChildSession, b: ChildSession): number {
   return 0
 }
 
+/**
+ * Pure function: compute the visible session list from children, hidden set,
+ * tombstones, and pane limit. Extracted for direct testability.
+ */
+export function computeVisibleSessions(
+  children: readonly ChildSession[],
+  hidden: ReadonlySet<string>,
+  tombstones: ReadonlyMap<string, { session: ChildSession; expiresAt: number }>,
+  currentIDs: ReadonlySet<string>,
+  limit: number,
+): ChildSession[] {
+  // Filter out idle-hidden sessions (active sessions always visible)
+  const visible = children.filter((c) => !(c.status === "idle" && hidden.has(c.id)))
+
+  // Merge with tombstoned sessions not currently in the live list
+  const merged = [...visible]
+  for (const [id, tomb] of tombstones) {
+    if (!currentIDs.has(id) && !hidden.has(id)) {
+      merged.push({ ...tomb.session, status: "idle" as const })
+    }
+  }
+
+  return merged.sort(sortSessions).slice(0, limit)
+}
+
 export function useSubagentSessions() {
   const params = useParams()
   const sync = useSync()
@@ -72,6 +97,7 @@ export function useSubagentSessions() {
 
   // Timers for idle hide and tombstone expiry
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  const prevStatusMap = new Map<string, "idle" | "busy" | "retry">()
 
   onCleanup(() => {
     for (const timer of timers.values()) clearTimeout(timer)
@@ -92,11 +118,27 @@ export function useSubagentSessions() {
     return children.map((s) => toChildSession(s, statusMap[s.id]))
   })
 
-  // Manage idle timers and tombstones
+  // Manage idle timers, tombstones, and hidden-state transitions
   createEffect(() => {
     const children = childrenWithStatus()
     const currentIDs = new Set(children.map((c) => c.id))
     const now = Date.now()
+
+    const hidden = untrack(hiddenByTimer)
+
+    // Detect idle→active transitions to clear hidden state.
+    // A session hidden while idle should reappear when it becomes busy/retry.
+    for (const child of children) {
+      const prev = prevStatusMap.get(child.id)
+      if (prev === "idle" && isActive(child.status) && hidden.has(child.id)) {
+        setHiddenByTimer((prev) => {
+          const next = new Set(prev)
+          next.delete(child.id)
+          return next
+        })
+      }
+      prevStatusMap.set(child.id, child.status)
+    }
 
     // Cancel idle timers for sessions that are now active
     for (const child of children) {
@@ -111,7 +153,7 @@ export function useSubagentSessions() {
 
     // Start idle timers for sessions that just became idle (were previously active)
     for (const child of children) {
-      if (child.status === "idle" && !timers.has(`idle:${child.id}`) && !hiddenByTimer().has(child.id)) {
+      if (child.status === "idle" && !timers.has(`idle:${child.id}`) && !hidden.has(child.id)) {
         const timer = setTimeout(() => {
           timers.delete(`idle:${child.id}`)
           setHiddenByTimer((prev) => {
@@ -123,18 +165,6 @@ export function useSubagentSessions() {
         timers.set(`idle:${child.id}`, timer)
       }
     }
-
-    // Clean up hidden-by-timer entries for sessions that became active again
-    const hidden = untrack(hiddenByTimer)
-    let hiddenChanged = false
-    const nextHidden = new Set(hidden)
-    for (const child of children) {
-      if (isActive(child.status) && nextHidden.has(child.id)) {
-        nextHidden.delete(child.id)
-        hiddenChanged = true
-      }
-    }
-    if (hiddenChanged) setHiddenByTimer(nextHidden)
 
     // Manage tombstones: sessions that disappeared from raw list
     const prev = untrack(tombstones)
@@ -165,7 +195,7 @@ export function useSubagentSessions() {
     const currentRawSet = currentIDs
 
     for (const id of prevRawSet) {
-      if (!currentRawSet.has(id) && !nextTombstones.has(id)) {
+      if (!currentRawSet.has(id) && !nextTombstones.has(id) && !hidden.has(id)) {
         // Session was deleted - create tombstone
         // Find its last known state from childrenWithStatus
         const lastKnown = untrack(childrenWithStatus).find((c) => c.id === id)
@@ -196,19 +226,7 @@ export function useSubagentSessions() {
     const hidden = hiddenByTimer()
     const currentIDs = new Set(children.map((c) => c.id))
     const limit = paneLimit()
-
-    // Filter out idle-hidden sessions
-    const visible = children.filter((c) => !(c.status === "idle" && hidden.has(c.id)))
-
-    // Merge with tombstoned sessions not currently in the live list
-    const merged = [...visible]
-    for (const [id, tomb] of tombstones()) {
-      if (!currentIDs.has(id)) {
-        merged.push({ ...tomb.session, status: "idle" as const })
-      }
-    }
-
-    return merged.sort(sortSessions).slice(0, limit)
+    return computeVisibleSessions(children, hidden, tombstones(), currentIDs, limit)
   })
 
   const total = createMemo(() => childrenWithStatus().length)
@@ -218,5 +236,12 @@ export function useSubagentSessions() {
     sessions,
     overflow,
     total,
+    /** Expose internal signals for testing only. */
+    __testing: {
+      hiddenByTimer,
+      setHiddenByTimer,
+      tombstones,
+      prevStatusMap,
+    },
   }
 }

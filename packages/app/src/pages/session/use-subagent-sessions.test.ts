@@ -1,14 +1,17 @@
 import { beforeAll, afterEach, describe, expect, mock, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import type { Session, SessionStatus } from "@opencode-ai/sdk/v2/client"
+import type { ChildSession } from "./use-subagent-sessions"
 
 let useSubagentSessions: typeof import("./use-subagent-sessions").useSubagentSessions
+let computeVisibleSessions: typeof import("./use-subagent-sessions").computeVisibleSessions
 
 // Mutable mock state shared across tests
 let mockParams: { id?: string } = {}
 let mockSessions: Session[] = []
 let mockStatuses: Record<string, SessionStatus> = {}
 let mockPaneLimit = 4
+let mockIdleHideMs = 1000
 
 beforeAll(async () => {
   mock.module("@solidjs/router", () => ({
@@ -36,12 +39,14 @@ beforeAll(async () => {
     useSettings: () => ({
       general: {
         agentSplitPaneLimit: () => mockPaneLimit,
+        agentSplitIdleHideMs: () => mockIdleHideMs,
       },
     }),
   }))
 
   const mod = await import("./use-subagent-sessions")
   useSubagentSessions = mod.useSubagentSessions
+  computeVisibleSessions = mod.computeVisibleSessions
 })
 
 afterEach(() => {
@@ -49,6 +54,7 @@ afterEach(() => {
   mockStatuses = {}
   mockParams = { id: "parent-1" }
   mockPaneLimit = 4
+  mockIdleHideMs = 1000
 })
 
 function childSession(overrides: Partial<Session> & { id: string }): Session {
@@ -73,6 +79,16 @@ function idleStatus(): SessionStatus {
 
 function retryStatus(): SessionStatus {
   return { type: "retry", attempt: 1, message: "retrying", next: Date.now() + 1000 }
+}
+
+function makeChild(overrides: Partial<ChildSession> & { id: string }): ChildSession {
+  return {
+    title: `Session ${overrides.id}`,
+    agent: "",
+    status: "idle",
+    model: { providerID: "", modelID: "" },
+    ...overrides,
+  }
 }
 
 describe("useSubagentSessions", () => {
@@ -334,11 +350,6 @@ describe("useSubagentSessions", () => {
       expect(sessions().map((s) => s.id)).toContain("child-1")
       expect(sessions().map((s) => s.id)).toContain("child-2")
 
-      // With child-1 removed from the live list, the hook's synchronous
-      // memo computation still sees the original snapshot.  Tombstone
-      // cleanup happens asynchronously via createEffect (timer-driven),
-      // so in the server build (no effect reactivity) the initial list
-      // is unchanged until re-evaluation.
       dispose()
     })
   })
@@ -380,13 +391,6 @@ describe("useSubagentSessions", () => {
       // Both children visible
       expect(sessions().length).toBe(2)
       expect(total()).toBe(2)
-
-      // After removal from the data source, the synchronous computation
-      // shows the updated list on re-evaluation (which happens because
-      // mockSessions changed and the createSignal re-reads it).
-      mockSessions = [
-        childSession({ id: "child-2", parentID: "parent-1" }),
-      ]
 
       dispose()
     })
@@ -482,6 +486,123 @@ describe("useSubagentSessions", () => {
       expect(ids).toEqual(["idle-1", "idle-2"])
 
       dispose()
+    })
+  })
+
+  describe("computeVisibleSessions (pure function)", () => {
+    test("hidden idle session stays hidden when unrelated child is appended", () => {
+      const a = makeChild({ id: "busy-a", status: "busy" })
+      const b = makeChild({ id: "idle-b", status: "idle" })
+      const c = makeChild({ id: "busy-c", status: "busy" })
+
+      // Both visible when nothing hidden
+      const all = computeVisibleSessions([a, b], new Set(), new Map(), new Set(["busy-a", "idle-b"]), 4)
+      expect(all.map((s) => s.id)).toEqual(["busy-a", "idle-b"])
+
+      // Hide idle-b
+      const hidden = new Set(["idle-b"])
+      const afterHide = computeVisibleSessions([a, b], hidden, new Map(), new Set(["busy-a", "idle-b"]), 4)
+      expect(afterHide.map((s) => s.id)).toEqual(["busy-a"])
+
+      // Append new busy-c — hidden idle-b must stay hidden
+      const afterAppend = computeVisibleSessions([a, b, c], hidden, new Map(), new Set(["busy-a", "idle-b", "busy-c"]), 4)
+      expect(afterAppend.map((s) => s.id)).toContain("busy-a")
+      expect(afterAppend.map((s) => s.id)).toContain("busy-c")
+      expect(afterAppend.map((s) => s.id)).not.toContain("idle-b")
+    })
+
+    test("idle→busy transition: unhidden session reappears", () => {
+      const a = makeChild({ id: "busy-a", status: "busy" })
+      const bIdle = makeChild({ id: "active-b", status: "idle" })
+      const bBusy = makeChild({ id: "active-b", status: "busy" })
+
+      const hidden = new Set(["active-b"])
+      const ids = new Set(["busy-a", "active-b"])
+
+      // Hidden while idle
+      const whenIdle = computeVisibleSessions([a, bIdle], hidden, new Map(), ids, 4)
+      expect(whenIdle.map((s) => s.id)).toEqual(["busy-a"])
+
+      // After transition to busy: clear hidden (as effect does), session visible
+      const whenBusy = computeVisibleSessions([a, bBusy], new Set(), new Map(), ids, 4)
+      expect(whenBusy.map((s) => s.id)).toContain("active-b")
+      expect(whenBusy.length).toBe(2)
+    })
+
+    test("idle→retry transition: unhidden session reappears", () => {
+      const a = makeChild({ id: "busy-a", status: "busy" })
+      const bIdle = makeChild({ id: "active-b", status: "idle" })
+      const bRetry = makeChild({ id: "active-b", status: "retry" })
+
+      const hidden = new Set(["active-b"])
+      const ids = new Set(["busy-a", "active-b"])
+
+      const whenIdle = computeVisibleSessions([a, bIdle], hidden, new Map(), ids, 4)
+      expect(whenIdle.map((s) => s.id)).toEqual(["busy-a"])
+
+      const whenRetry = computeVisibleSessions([a, bRetry], new Set(), new Map(), ids, 4)
+      expect(whenRetry.map((s) => s.id)).toContain("active-b")
+      expect(whenRetry.length).toBe(2)
+    })
+
+    test("removal and re-addition as active: session reappears", () => {
+      const a = makeChild({ id: "busy-a", status: "busy" })
+      const bIdle = makeChild({ id: "active-b", status: "idle" })
+      const bBusy = makeChild({ id: "active-b", status: "busy" })
+
+      const hidden = new Set(["active-b"])
+
+      // Hidden while idle
+      const before = computeVisibleSessions([a, bIdle], hidden, new Map(), new Set(["busy-a", "active-b"]), 4)
+      expect(before.map((s) => s.id)).toEqual(["busy-a"])
+
+      // Removed: only a in live list, hidden still blocks b from tombstone merge
+      const tombstones = new Map()
+      const removed = computeVisibleSessions([a], hidden, tombstones, new Set(["busy-a"]), 4)
+      expect(removed.map((s) => s.id)).toEqual(["busy-a"])
+
+      // Re-added as busy with hidden cleared: b reappears
+      const readded = computeVisibleSessions([a, bBusy], new Set(), tombstones, new Set(["busy-a", "active-b"]), 4)
+      expect(readded.map((s) => s.id)).toContain("active-b")
+      expect(readded.length).toBe(2)
+    })
+
+    test("hidden session deletion: tombstone merge excludes hidden", () => {
+      const a = makeChild({ id: "busy-a", status: "busy" })
+      const b = makeChild({ id: "idle-b", status: "idle" })
+
+      const hidden = new Set(["idle-b"])
+      const now = Date.now()
+      const tombstones = new Map([
+        ["idle-b", { session: b, expiresAt: now + 5000 }],
+      ])
+
+      // Hidden idle-b not in live list; tombstone merge skips it because hidden
+      const result = computeVisibleSessions([a], hidden, tombstones, new Set(["busy-a"]), 4)
+      expect(result.map((s) => s.id)).toEqual(["busy-a"])
+
+      // Without hidden set, tombstoned idle-b would reappear
+      const withoutHidden = computeVisibleSessions([a], new Set(), tombstones, new Set(["busy-a"]), 4)
+      expect(withoutHidden.map((s) => s.id)).toContain("idle-b")
+    })
+
+    test("active session in hidden set is still visible (belt-and-suspenders)", () => {
+      const busy = makeChild({ id: "busy-x", status: "busy" })
+      const hidden = new Set(["busy-x"])
+
+      // Filter only hides idle sessions, not active ones
+      const result = computeVisibleSessions([busy], hidden, new Map(), new Set(["busy-x"]), 4)
+      expect(result.map((s) => s.id)).toEqual(["busy-x"])
+    })
+
+    test("pane limit caps result after filtering and tombstone merge", () => {
+      const children = Array.from({ length: 6 }, (_, i) =>
+        makeChild({ id: `child-${i}`, status: "idle" }),
+      )
+      const ids = new Set(children.map((c) => c.id))
+
+      const result = computeVisibleSessions(children, new Set(), new Map(), ids, 3)
+      expect(result.length).toBe(3)
     })
   })
 })
